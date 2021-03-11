@@ -7,5 +7,5 @@ fn main() {
 
     let file = read_to_string("tests/test1.py").unwrap();
 
-    parse.parse_content(&file)
+    parse.process_file(&file)
 }

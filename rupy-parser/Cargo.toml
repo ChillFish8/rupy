@@ -1,0 +1,15 @@
+[package]
+name = "rupy-parser"
+version = "0.1.0"
+authors = ["Harrison Burt <57491488+ChillFish8@users.noreply.github.com>"]
+edition = "2018"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+rustpython-parser = "0.1.2"
+crossbeam = "0.8"
+
+bytes = "1"
+num-bigint = "0.2.6"
+slab = "0.4"
