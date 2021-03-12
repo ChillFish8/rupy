@@ -8,3 +8,10 @@ edition = "2018"
 
 [dependencies]
 rupy-parser = { version = "0.1.0", path = "./rupy-parser" }
+
+hashbrown = "0.9.1"
+rustc-hash = "1.1"
+slab = "0.4"
+bytes = "1"
+num-bigint = "0.2.6"
+crossbeam = "0.8"

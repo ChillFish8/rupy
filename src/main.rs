@@ -1,3 +1,8 @@
+mod gc;
+mod constructors;
+mod functions;
+mod types;
+
 use std::fs::read_to_string;
 
 use rupy_parser::AstParser;

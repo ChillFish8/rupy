@@ -20,7 +20,7 @@ use crossbeam::deque::Worker;
 use bytes::Bytes;
 use num_bigint::BigInt;
 
-use crate::types::{RawTypes, ParsingTypes};
+use crate::types::{ParsingTypes};
 
 
 #[derive(Debug)]
@@ -33,20 +33,22 @@ pub enum Instruction {
     Import(ImportSymbol),
     AssignVar(Vec<String>),
     Invoke,
-
+    CreateFunction((String, usize)),
 }
 
 
 pub struct AstParser {
     statements: VecDeque<Statement>,
     queue: VecDeque<(usize, Instruction)>,
+    stmt_counter: usize,
 }
 
 impl AstParser {
     pub fn new() -> Self {
         Self {
             statements: VecDeque::new(),
-            queue: VecDeque::new()
+            queue: VecDeque::new(),
+            stmt_counter: 0,
         }
     }
 
@@ -58,60 +60,46 @@ impl AstParser {
             self.statements.push_front(stmt);
         }
 
-        let mut counter = 0usize;
         while let Some(stmt) = self.statements.pop_front() {
-            self.handle_stmt(counter, stmt);
-            counter += 1;
+            self.handle_stmt(self.stmt_counter, stmt);
+            self.stmt_counter += 1;
         }
 
-
+        self.generate_bytecode();
     }
 
     pub fn generate_bytecode(&mut self) {
-        let mut current_count = 0usize;
-        let mut temp_stack = Worker::new_lifo();
         while let Some((id, instr)) = self.queue.pop_front() {
-            if current_count != id {
-                self.process_stack(&mut temp_stack);
-                current_count = id;
-            }
-
-            temp_stack.push(instr);
-        }
-    }
-
-    fn process_stack(&mut self, stack: &mut Worker<Instruction>) {
-        while let Some(inst) = stack.pop() {
-
+            println!("{} - {:?}", id, instr);
         }
     }
 
     fn handle_stmt(&mut self, id: usize, stmt: Statement) {
         match stmt.node {
             StatementType::Break => {
-                self.queue.push((id, Instruction::Break));
+                self.queue.push_back((id, Instruction::Break));
             },
             StatementType::Continue => {
-                self.queue.push((id, Instruction::Continue));
+                self.queue.push_back((id, Instruction::Continue));
             },
             StatementType::Pass => {
-                self.queue.push((id, Instruction::Pass));
+                self.queue.push_back((id, Instruction::Pass));
             },
             StatementType::Return {
                 value,
             } => {
-                self.queue.push((id, Instruction::Return));
+                self.queue.push_back((id, Instruction::Return));
                 if let Some(expr) = value {
                     self.handle_expr_node(id, expr.node);
                 } else {
-                    self.queue.push((id, Instruction::Value(ParsingTypes::None)));
+                    self.queue.push_back((id, Instruction::Value(ParsingTypes::None)));
                 }
             },
             StatementType::Import {
                 names,
             } => {
                 for name in names {
-                    self.queue.push((id, Instruction::Import(name)))
+                    self.queue.push_back((id, Instruction::Import(name)))
                 }
             },
             StatementType::ImportFrom {
@@ -145,7 +133,7 @@ impl AstParser {
                     }
                 }
 
-                self.queue.push((id, Instruction::AssignVar(vars)));
+                self.queue.push_back((id, Instruction::AssignVar(vars)));
                 self.handle_expr_node(id, value.node);
             },
             StatementType::AugAssign {
@@ -234,11 +222,20 @@ impl AstParser {
                 is_async,
                 name,
                 args,
-                body,
+                mut body,
                 decorator_list,
                 returns
             } => {
+                self.stmt_counter += 1;
+                let block_id = self.stmt_counter;
+                self.queue.push_back((
+                    id,
+                    Instruction::CreateFunction((name, block_id))
+                ));
 
+                for stmt in body {
+                    self.handle_stmt(block_id, stmt);
+                }
             },
         }
     }
@@ -273,7 +270,7 @@ impl AstParser {
 
             },
             ExpressionType::Call { function, args, keywords } => {
-                self.queue.push((id, Instruction::Invoke));
+                self.queue.push_back((id, Instruction::Invoke));
                 self.handle_expr_node(id, function.node);
 
                 for expr in args {
@@ -281,7 +278,7 @@ impl AstParser {
                 }
 
                 for kwarg in keywords {
-                    self.queue.push((
+                    self.queue.push_back((
                         id,
                         Instruction::Value(ParsingTypes::KeyVar(kwarg.name))
                     ));
@@ -310,7 +307,7 @@ impl AstParser {
 
             },
             ExpressionType::Identifier { name } => {
-                self.queue.push((
+                self.queue.push_back((
                     id,
                     Instruction::Value(ParsingTypes::Var(name))
                 ))
@@ -327,19 +324,19 @@ impl AstParser {
             ExpressionType::Number { value } => {
                 match value {
                     Number::Integer { value } => {
-                        self.queue.push((
+                        self.queue.push_back((
                             id,
                             Instruction::Value(ParsingTypes::Int(value)),
                         ))
                     }
                     Number::Float { value } => {
-                        self.queue.push((
+                        self.queue.push_back((
                             id,
                             Instruction::Value(ParsingTypes::Float(value)),
                         ))
                     },
                     Number::Complex { real, imag } => {
-                        self.queue.push((
+                        self.queue.push_back((
                             id,
                             Instruction::Value(ParsingTypes::Complex((real, imag))),
                         ))
@@ -347,37 +344,37 @@ impl AstParser {
                 }
             },
             ExpressionType::String { value } => {
-                self.queue.push((
+                self.queue.push_back((
                     id,
                     Instruction::Value(ParsingTypes::Str(value)),
                 ))
             },
             ExpressionType::Bytes { value } => {
-                self.queue.push((
+                self.queue.push_back((
                     id,
                     Instruction::Value(ParsingTypes::Bytes(value)),
                 ))
             },
             ExpressionType::True => {
-                self.queue.push((
+                self.queue.push_back((
                     id,
                     Instruction::Value(ParsingTypes::True),
                 ));
             },
             ExpressionType::False => {
-                self.queue.push((
+                self.queue.push_back((
                     id,
                     Instruction::Value(ParsingTypes::False),
                 ));
             },
             ExpressionType::None => {
-                self.queue.push((
+                self.queue.push_back((
                     id,
                     Instruction::Value(ParsingTypes::None),
                 ));
             },
             ExpressionType::Ellipsis => {
-                self.queue.push((
+                self.queue.push_back((
                     id,
                     Instruction::Value(ParsingTypes::None),
                 ));
