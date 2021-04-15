@@ -1,27 +1,24 @@
-import asyncio
+import timeit
+
+runs = 100_000
+time = timeit.timeit(
+    "x = lookup['bob-69']",
+    "lookup = {f'bob-{i}': i for i in range(10_000)}",
+    number=100_000,
+)
+
+total_ms = time * 1000
+avg_ms = (total_ms / runs) * (10 ** 6)
+print(f"{total_ms}ms total, {avg_ms}ns per call")
 
 
-class TestException(Exception):
-    pass
+runs = 100_000
+time = timeit.timeit(
+    "x = lookup[69]",
+    "lookup = [f'bob-{i}' for i in range(10_000)]",
+    number=100_000,
+)
 
-
-async def task():
-    raise TestException('something went wrong')
-
-
-async def init():
-    def task_callback(tsk):
-        print("foo")
-        try:
-            tsk.result()
-        except TestException as e:
-            raise e
-
-    for i in range(1):
-        t = asyncio.create_task(task())
-        t.add_done_callback(task_callback)
-
-
-loop = asyncio.get_event_loop()
-loop.run_until_complete(init())
-loop.run_forever()
+total_ms = time * 1000
+avg_ms = (total_ms / runs) * (10 ** 6)
+print(f"{total_ms}ms total, {avg_ms}ns per call")
