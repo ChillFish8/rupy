@@ -8,18 +8,17 @@ edition = "2018"
 
 [dependencies]
 rupy-parser = { version = "*", path = "./rupy-parser" }
-rupy-compiler = { version = "*", path = "./rupy-compiler" }
-rupy-bytecode = { version = "*", path = "./rupy-bytecode" }
 rupy-ast = { version = "*", path = "./rupy-ast" }
-rupy-runtime = { version = "*", path = "./rupy-runtime" }
 
 hashbrown = "0.9.1"
 rustc-hash = "1.1"
 slab = "0.4"
 bytes = "1"
 num-bigint = "0.2.6"
+num-traits = "0.2.14"
 crossbeam = "0.8"
 anyhow = "1"
+luajit2-sys = "0.0.2"
 
 [profile.release]
 lto = "fat"

@@ -1,53 +1,53 @@
+use anyhow::Result;
 
-/// Wraps a given set of bytecode instructions in a module block.
-///
-/// This function automatically defines memory so should not be included
-/// in the code as memory is interpreted as part of the module.
-pub fn wrap_with_module(code: &[String]) -> String {
-    format!(r#"
-    (module
-        (memory $1 1)
-        {}
-    )"#, code.join("\n"))
+use crate::traits::WrappingType;
+
+
+pub fn get_local_define(assignees: &Vec<String>) -> String {
+    let define_locals: String = assignees.join(", ");
+    format!("local {}", define_locals)
 }
 
-pub fn wrap_with_function(name: &str, code: &[String]) -> String {
-    format!(r#"
-    (func $module/{}
-        {}
-    )"#, name, code.join("\n"))
+
+pub fn assign(assignees: Vec<String>, value: impl WrappingType, global: bool) -> Result<String> {
+    let mut out = Vec::with_capacity(assignees.len() + 1);
+
+    if !global {
+        let define_local = get_local_define(&assignees);
+        out.push(define_local);
+    }
+
+    for assign in assignees {
+        out.push(format!("{} = {}", assign, value.to_lua()?))
+    }
+
+    Ok(out.join("\n"))
 }
 
 
 #[cfg(test)]
-mod tests {
+mod wrapper_tests {
     use super::*;
-    use rupy_runtime::run_wat;
 
     #[test]
-    fn test_wrap_with_module() -> anyhow::Result<()> {
-        let code = vec![
-            "(table $0 1 funcref)".to_string(),
-            "(export \"fib\" (func $module/fib))".to_string(),
-            "(export \"memory\" (memory $0))".to_string(),
-        ];
+    fn test_get_local_define() {
+        let sample_input = vec!["x".to_string(), "y".to_string()];
 
-        let out = wrap_with_module(code.as_ref());
-        run_wat(&out)?;
-        Ok(())
+        let out = get_local_define(&sample_input);
+
+        assert_eq!("local x, y", out.as_str())
     }
 
     #[test]
-    fn test_wrap_with_function() -> anyhow::Result<()> {
+    fn test_assign() -> Result<()> {
+        let sample_input = vec!["x".to_string(), "y".to_string()];
+        let sample_value = "abc";
 
+        let out = assign(sample_input, sample_value)?;
 
-        Ok(())
-    }
-
-    #[test]
-    fn test_wrap_func_with_wrap_module() -> anyhow::Result<()> {
-
+        assert_eq!("local x, y\nx = \"abc\"\ny = \"abc\"", out.as_str());
 
         Ok(())
     }
+
 }
